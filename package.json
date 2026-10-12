@@ -1,0 +1,60 @@
+{
+  "name": "@red-cup-engineering/education-platform-service",
+  "version": "0.2.5",
+  "type": "module",
+  "description": "Theme-neutral education kernel: course compilation, FSRS-lite scheduling, light-cone progression, checkers, mastery, sessions, persistence, and browser projection.",
+  "engines": {
+    "node": ">=24"
+  },
+  "sideEffects": false,
+  "files": [
+    "src",
+    "web/js/app.js",
+    "web/js/state.js",
+    "web/js/markdown.js"
+  ],
+  "dependencies": {
+    "@red-cup-engineering/computer-code-engineering-services-section": "workspace:*",
+    "@red-cup-engineering/gaming": "workspace:*",
+    "@red-cup-engineering/icalendar-services-section": "workspace:*",
+    "@red-cup-engineering/markdown-engineering-services-section": "workspace:*",
+    "@red-cup-engineering/metrologic": "workspace:*",
+    "@red-cup-engineering/web-page-tiling-engine": "workspace:*",
+    "esbuild": "0.28.1",
+    "buffer": "6.0.3",
+    "@red-cup-engineering/json-services-section": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --test \"src/*.test.mjs\" \"web/test/*.test.mjs\""
+  },
+  "exports": {
+    ".": "./src/compile.mjs",
+    "./checker": "./src/checker.mjs",
+    "./compile": "./src/compile.mjs",
+    "./earn": "./src/earn.mjs",
+    "./gate": "./src/gate.mjs",
+    "./kata": "./src/kata.mjs",
+    "./lightcone": "./src/lightcone.mjs",
+    "./mastery": "./src/mastery.mjs",
+    "./persistence": "./src/persistence.mjs",
+    "./projector": "./src/projector.mjs",
+    "./register": "./src/register.mjs",
+    "./session": "./src/session.mjs",
+    "./srs": "./src/srs.mjs",
+    "./stability": "./src/stability.mjs",
+    "./types": "./src/types.mjs",
+    "./walk": "./src/walk.mjs",
+    "./walk-rules": "./src/walk-rules.mjs",
+    "./srs-record": "./src/srs-record.mjs",
+    "./cards": "./src/cards.mjs",
+    "./canonical": "./src/canonical.mjs",
+    "./build-layout": "./src/build-layout.mjs",
+    "./choices": "./src/choices.mjs",
+    "./answer": "./src/answer.mjs",
+    "./voxels": "./src/voxels.mjs",
+    "./markdown": "./web/js/markdown.js"
+  },
+  "devDependencies": {
+    "@red-cup-engineering/json-services-section": "workspace:*"
+  }
+}
