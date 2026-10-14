@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { recallProbability, daysUntilRetention, reviewCard, FACTOR, DECAY, DEFAULT_TARGET_RETENTION } from './srs.mjs';
+import { recallProbability, daysUntilRetention, reviewCard, epochDayOf, FACTOR, DECAY, DEFAULT_TARGET_RETENTION, STAGE_CUTS } from './srs.mjs';
 
 test('R(t=S) = 0.9 exactly -- the structural identity FACTOR is derived to guarantee', () => {
   const S = 5;
@@ -61,4 +61,61 @@ test('reviewCard is deterministic: same inputs, same output, every time', () => 
   const a = reviewCard({ stability: 4, difficulty: 5, lastReviewedAt: 10 }, 3, 15);
   const b = reviewCard({ stability: 4, difficulty: 5, lastReviewedAt: 10 }, 3, 15);
   assert.deepEqual(a, b);
+});
+
+test('retention identities hold over representative SRS stabilities, not a single example', () => {
+  for (const stability of [0.4, 1, 2.5, 4.5, 10, 30, 90, 365]) {
+    assert.ok(Math.abs(recallProbability(stability, stability) - 0.9) < 1e-12,
+      `stability=${stability}: R(S,S) must be 0.9`);
+    const elapsed = daysUntilRetention(stability, DEFAULT_TARGET_RETENTION);
+    assert.ok(Math.abs(elapsed - stability) < 1e-9,
+      `stability=${stability}: the retention inverse must recover S`);
+  }
+});
+
+test('epochDayOf uses UTC floor boundaries, including before the Unix epoch', () => {
+  assert.equal(epochDayOf(0), 0);
+  assert.equal(epochDayOf(86_400_000 - 1), 0);
+  assert.equal(epochDayOf(86_400_000), 1);
+  assert.equal(epochDayOf(2 * 86_400_000 + 3_600_000), 2);
+  assert.equal(epochDayOf(-1), -1, 'the final millisecond before epoch 0 is day -1');
+  assert.equal(epochDayOf(-86_400_000), -1);
+  assert.equal(epochDayOf(-86_400_001), -2);
+});
+
+test('retention declines with elapsed days and increases with stability, within physical bounds', () => {
+  for (const stability of [0.4, 1, 5, 90]) {
+    let previous = recallProbability(0, stability);
+    for (let day = 1; day <= 50; day++) {
+      const value = recallProbability(day, stability);
+      assert.ok(value > 0 && value <= previous && value <= 1, `S=${stability} day=${day}`);
+      previous = value;
+    }
+  }
+  assert.ok(recallProbability(3, 100) > recallProbability(3, 1));
+});
+
+test('long sequences of Good reviews grow or preserve stability and difficulty remains bounded', () => {
+  let card = { stability: 0, difficulty: 0 };
+  card = reviewCard(card, 3, 0);
+  let lastStability = card.stability;
+  let now = 0;
+  for (let i = 0; i < 10; i++) {
+    now += Math.max(1, Math.round(card.stability));
+    card = reviewCard(card, 3, now);
+    assert.ok(card.stability >= lastStability, `good review ${i} cannot shrink stability`);
+    assert.ok(card.difficulty >= 1 && card.difficulty <= 10);
+    lastStability = card.stability;
+  }
+  for (const grade of [1, 4]) {
+    let boundary = { stability: 1, difficulty: grade === 1 ? 10 : 1, lastReviewedAt: 0 };
+    for (let i = 0; i < 30; i++) {
+      boundary = reviewCard(boundary, grade, i + 1);
+      assert.ok(boundary.difficulty >= 1 && boundary.difficulty <= 10);
+    }
+  }
+});
+
+test('published stage cuts retain the upstream light/embers/dim interpretation', () => {
+  assert.deepEqual(STAGE_CUTS, { full: 0.9, embers: 0.7, dim: 0.5 });
 });
