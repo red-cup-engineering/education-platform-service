@@ -32,7 +32,6 @@
     ".": "./src/compile.mjs",
     "./checker": "./src/checker.mjs",
     "./compile": "./src/compile.mjs",
-    "./earn": "./src/earn.mjs",
     "./gate": "./src/gate.mjs",
     "./kata": "./src/kata.mjs",
     "./lightcone": "./src/lightcone.mjs",
