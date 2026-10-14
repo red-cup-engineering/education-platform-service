@@ -3,15 +3,17 @@
  * needs "now" takes it as a parameter (an epoch day -- an integer day count, caller's choice of
  * epoch). Nothing in this module ever calls `Date.now()`.
  *
- * Vendored verbatim from `lantern-service/src/srs.mts` (platform §9 step 1: already theme-
- * neutral, declared as platform surface, no code moves) -- the module every theme schedules
- * through, never a second scheduler (platform §3).
+ * This education-platform-service module is the owning implementation of
+ * theme-neutral SRS scheduling. Browser consumers project this exact source;
+ * the upstream `src/srs*.test.mjs` files test the mathematics and transitions,
+ * and the consuming app tests its projected artifact instead of re-porting
+ * the mathematical test suite.
  *
  * The forgetting curve is real and cited, not invented for this project: `R(t,S) = (1 +
  * FACTOR*t/S)^DECAY` is FSRS's own published power-law forgetting curve (Su et al. /
  * open-spaced-repetition project), `DECAY=-0.5` and `FACTOR=19/81` are its own published
  * defaults. `FACTOR` is derived from `DECAY` so that `R = 0.9` exactly when `t = S` -- a
- * structural identity of the formula (verified in srs.test.mts), not a coincidence.
+ * structural identity of the formula (verified in srs.test.mjs), not a coincidence.
  *
  * What IS a disclosed simplification: real FSRS fits ~19 weights per user from review history.
  * This module hand-sets one small fixed constant set below ("FSRS-lite") and never claims to be
