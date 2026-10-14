@@ -25,7 +25,8 @@
     "@red-cup-engineering/json-services-section": "workspace:*"
   },
   "scripts": {
-    "test": "node --test \"src/*.test.mjs\" \"web/test/*.test.mjs\""
+    "test": "node --test \"src/*.test.mjs\" \"web/test/*.test.mjs\"",
+    "test:srs": "node --test src/srs.test.mjs"
   },
   "exports": {
     ".": "./src/compile.mjs",
