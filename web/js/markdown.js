@@ -1,4 +1,4 @@
-import { readMarkdownSource } from '@red-cup-engineering/markdown-engineering-services-section/read-markdown-structure';
+import { readMarkdownSource } from '@red-cup-engineering/read-markdown-structure-service';
 
 /** Hide the adapter-declared exercise metadata, retaining ordinary fenced code. */
 export function stripExerciseFences(body, labels) {
