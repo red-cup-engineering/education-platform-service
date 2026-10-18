@@ -3,6 +3,11 @@
   "version": "0.2.6",
   "type": "module",
   "description": "Theme-neutral education kernel: course compilation, FSRS-lite scheduling, light-cone progression, checkers, mastery, sessions, persistence, and browser projection.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/red-cup-engineering/computer-systems-engineering-services-section.git",
+    "directory": "services/computer-game-system-services-section/services/education-platform-service"
+  },
   "engines": {
     "node": ">=24"
   },
