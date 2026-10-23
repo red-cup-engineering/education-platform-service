@@ -57,7 +57,8 @@
     "./choices": "./src/choices.mjs",
     "./answer": "./src/answer.mjs",
     "./voxels": "./src/voxels.mjs",
-    "./markdown": "./web/js/markdown.js"
+    "./markdown": "./web/js/markdown.js",
+    "./practice-evidence": "./src/practice-evidence.mjs"
   },
   "devDependencies": {
     "@red-cup-engineering/json-services-section": "0.4.0"
