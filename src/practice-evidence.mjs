@@ -42,3 +42,19 @@ export function lastPracticeEvidence({
     credentialIssued: false,
   });
 }
+
+
+/** Admit a locally exported last-practice note as non-authoritative evidence only. */
+export function validStoredPracticeEvidence(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) &&
+    value.kind === 'education.local-practice/v1' &&
+    ['gate', 'review'].includes(value.mode) &&
+    Number.isInteger(value.observedAtDay) &&
+    (value.daysSincePriorReview === null || (Number.isInteger(value.daysSincePriorReview) && value.daysSincePriorReview >= 0)) &&
+    typeof value.clockDisordered === 'boolean' &&
+    typeof value.correctBeforeFeedback === 'boolean' &&
+    [1, 2, 3, 4].includes(value.grade) &&
+    value.independentAssessment === false &&
+    value.credentialIssued === false &&
+    !(value.correctBeforeFeedback === true && value.grade === 1);
+}
