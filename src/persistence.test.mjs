@@ -6,6 +6,7 @@ import {
   savePlayerState,
   effectiveExerciseState,
   recordExerciseReview,
+  rememberCourseRoom,
   touchStreak,
   streakAtRisk,
   exportStateJson,
@@ -144,4 +145,20 @@ test('import cannot upgrade last local-practice evidence into an independently r
   });
   assert.throws(() => exportStateJson(populated), /local-state schema/);
   assert.equal(importStateJson(JSON.stringify(populated)), null);
+});
+
+
+test('local study resume is preserved across save/reload but cannot bypass course identity', () => {
+  const adapter = memoryAdapter();
+  const original = loadPlayerState(adapter, 'course-one');
+  const remembered = rememberCourseRoom(original, 'lesson-two');
+  assert.equal(remembered.lastVisitedRoomId, 'lesson-two');
+  assert.equal(original.lastVisitedRoomId, undefined);
+  savePlayerState(adapter, remembered);
+  assert.equal(loadPlayerState(adapter, 'course-one').lastVisitedRoomId, 'lesson-two');
+  assert.equal(loadPlayerState(adapter, 'course-two').lastVisitedRoomId, undefined);
+  assert.deepEqual(importStateJson(exportStateJson(remembered)), remembered);
+  assert.throws(() => rememberCourseRoom(original, ''), /real room/);
+  assert.throws(() => rememberCourseRoom(original, 42), /real room/);
+  assert.equal(importStateJson(JSON.stringify({ ...remembered, lastVisitedRoomId: 42 })), null);
 });
