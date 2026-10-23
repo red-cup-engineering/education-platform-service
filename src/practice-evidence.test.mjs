@@ -134,3 +134,37 @@ test('last practice is not proof of transfer even when the grade and interval ma
     assert.equal(validStoredPracticeEvidence(observation), true);
   }
 });
+
+test('deterministic synthetic challenge preserves 300 producer cases while refusing 1500 incoherent mutations', () => {
+  // Fixed seed: a repeatable source-conformance check, not blind transfer or learner evidence.
+  let seed = 0x561c0de;
+  function next() {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return seed >>> 0;
+  }
+  let positives = 0;
+  let negatives = 0;
+  for (let i = 0; i < 300; i++) {
+    const nowDay = 8000 + next() % 22000;
+    const grade = [2, 3, 4][next() % 3];
+    const mode = next() % 2 ? 'review' : 'gate';
+    const previousReviewDay = nowDay - (1 + next() % 1000);
+    const base = lastPracticeEvidence({ mode, grade, nowDay, previousReviewDay });
+    assert.equal(validStoredPracticeEvidence(base), true);
+    positives++;
+    const impossible = [
+      { ...base, grade: 3, correctBeforeFeedback: false },
+      { ...base, grade: 4, correctBeforeFeedback: false },
+      { ...base, clockDisordered: true },
+      { ...base, observedAtDay: Number.MAX_SAFE_INTEGER + 1 },
+      { ...base, daysSincePriorReview: Number.MAX_SAFE_INTEGER + 1 },
+    ];
+    for (const mutant of impossible) {
+      assert.equal(validStoredPracticeEvidence(mutant), false);
+      negatives++;
+    }
+  }
+  assert.deepEqual([positives, negatives], [300, 1500]);
+});
