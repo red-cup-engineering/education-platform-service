@@ -13,6 +13,7 @@ import {
   today,
   SCHEMA_VERSION,
 } from './persistence.mjs';
+import { lastPracticeEvidence } from './practice-evidence.mjs';
 
 test('loadPlayerState on an empty adapter returns a fresh, correctly-versioned state', () => {
   const state = loadPlayerState(memoryAdapter(), 'equivo');
@@ -113,4 +114,33 @@ test('today() derives an integer epoch day from a clock, never calling Date.now(
   const oneDayLater = today(86_400_000);
   assert.equal(day0, 0);
   assert.equal(oneDayLater, 1);
+});
+
+
+test('optional local attempt provenance survives save, reload and export without changing old saved states', () => {
+  const storage = memoryAdapter();
+  const original = loadPlayerState(storage, 'academy-course');
+  const practice = lastPracticeEvidence({ mode: 'gate', grade: 2, nowDay: 21000, hadIncorrectAttempt: true });
+  const updated = recordExerciseReview(original, 'unit#choice#1', {
+    stability: 1, difficulty: 6.5, lastReviewedAt: 21000, lastPractice: practice,
+  });
+  savePlayerState(storage, updated);
+  const reloaded = loadPlayerState(storage, 'academy-course');
+  assert.equal(reloaded.exercises['unit#choice#1'].lastPractice.correctBeforeFeedback, false);
+  assert.equal(reloaded.exercises['unit#choice#1'].lastPractice.credentialIssued, false);
+  assert.deepEqual(importStateJson(exportStateJson(updated)), updated);
+  const legacy = recordExerciseReview(original, 'unit#choice#1', {
+    stability: 1, difficulty: 6.5, lastReviewedAt: 21000,
+  });
+  assert.deepEqual(importStateJson(exportStateJson(legacy)), legacy);
+});
+
+test('import cannot upgrade last local-practice evidence into an independently received credential', () => {
+  const original = loadPlayerState(memoryAdapter(), 'academy-course');
+  const practice = lastPracticeEvidence({ mode: 'review', grade: 2, nowDay: 21007, previousReviewDay: 21000 });
+  const populated = recordExerciseReview(original, 'unit#choice#1', {
+    stability: 1, difficulty: 6.5, lastReviewedAt: 21007,
+    lastPractice: { ...practice, credentialIssued: true },
+  });
+  assert.equal(importStateJson(exportStateJson(populated)), null);
 });
