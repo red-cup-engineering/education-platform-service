@@ -26,15 +26,17 @@ export function lastPracticeEvidence({
   if (!['gate', 'review'].includes(mode)) throw new TypeError('unknown practice mode');
   if (![1, 2, 3, 4].includes(grade)) throw new TypeError('unknown practice grade');
   if (typeof hadIncorrectAttempt !== 'boolean') throw new TypeError('incorrect-attempt flag must be boolean');
-  if (!Number.isInteger(nowDay)) throw new TypeError('an observed epoch day is required');
-  if (previousReviewDay !== undefined && !Number.isInteger(previousReviewDay)) throw new TypeError('previous review must be an integer day');
+  if (!Number.isSafeInteger(nowDay)) throw new TypeError('an observed epoch day is required');
+  if (previousReviewDay !== undefined && !Number.isSafeInteger(previousReviewDay)) throw new TypeError('previous review must be an integer day');
   if (hadIncorrectAttempt && grade > 2) throw new TypeError('a retried success cannot be called Good or Easy');
   const clockDisordered = previousReviewDay !== undefined && nowDay < previousReviewDay;
+  const elapsed = previousReviewDay === undefined || clockDisordered ? null : nowDay - previousReviewDay;
+  if (elapsed !== null && !Number.isSafeInteger(elapsed)) throw new TypeError('elapsed review days exceed safe integer precision');
   return Object.freeze({
     kind: 'education.local-practice/v1',
     mode,
     observedAtDay: nowDay,
-    daysSincePriorReview: previousReviewDay === undefined || clockDisordered ? null : nowDay - previousReviewDay,
+    daysSincePriorReview: elapsed,
     clockDisordered,
     correctBeforeFeedback: grade >= 2 && !hadIncorrectAttempt,
     grade,
@@ -49,12 +51,13 @@ export function validStoredPracticeEvidence(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value) &&
     value.kind === 'education.local-practice/v1' &&
     ['gate', 'review'].includes(value.mode) &&
-    Number.isInteger(value.observedAtDay) &&
-    (value.daysSincePriorReview === null || (Number.isInteger(value.daysSincePriorReview) && value.daysSincePriorReview >= 0)) &&
+    Number.isSafeInteger(value.observedAtDay) &&
+    (value.daysSincePriorReview === null || (Number.isSafeInteger(value.daysSincePriorReview) && value.daysSincePriorReview >= 0 && Number.isSafeInteger(value.observedAtDay - value.daysSincePriorReview))) &&
     typeof value.clockDisordered === 'boolean' &&
     typeof value.correctBeforeFeedback === 'boolean' &&
     [1, 2, 3, 4].includes(value.grade) &&
     value.independentAssessment === false &&
     value.credentialIssued === false &&
-    !(value.correctBeforeFeedback === true && value.grade === 1);
+    (value.grade === 1 ? !value.correctBeforeFeedback : value.grade >= 3 ? value.correctBeforeFeedback : true) &&
+    (!value.clockDisordered || value.daysSincePriorReview === null);
 }
