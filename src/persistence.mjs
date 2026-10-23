@@ -72,6 +72,7 @@ function migrate(raw) {
   const streak = state.streak;
   if (![streak.current, streak.longest, streak.freezeTokens, streak.freezesUsed].every(Number.isFinite) || !(streak.lastActiveDay === null || Number.isInteger(streak.lastActiveDay))) return null;
   if (!Object.values(state.exercises).every((card) => card && typeof card === 'object' && Number.isFinite((card).stability) && Number.isFinite((card).difficulty) && ((card).lastReviewedAt === undefined || Number.isInteger((card).lastReviewedAt)) && ((card).lastPractice === undefined || validStoredPracticeEvidence((card).lastPractice)))) return null;
+  if (state.lastVisitedRoomId !== undefined && (typeof state.lastVisitedRoomId !== 'string' || !state.lastVisitedRoomId.trim() || state.lastVisitedRoomId.length > 512)) return null;
   return state;
 }
 
@@ -98,6 +99,12 @@ export function effectiveExerciseState(
   seedDefaults,
 ) {
   return state.exercises[exerciseId] ?? { stability: seedDefaults.stability, difficulty: seedDefaults.difficulty, lastReviewedAt: undefined };
+}
+
+/** Save one real room address for local return-to-study; never an enrollment or completion claim. */
+export function rememberCourseRoom(state, roomId) {
+  if (typeof roomId !== 'string' || !roomId.trim() || roomId.length > 512) throw new TypeError('a real room id is required');
+  return { ...state, lastVisitedRoomId: roomId };
 }
 
 export function recordExerciseReview(state, exerciseId, next) {
