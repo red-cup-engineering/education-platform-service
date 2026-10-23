@@ -26,8 +26,8 @@ export function lastPracticeEvidence({
   if (!['gate', 'review'].includes(mode)) throw new TypeError('unknown practice mode');
   if (![1, 2, 3, 4].includes(grade)) throw new TypeError('unknown practice grade');
   if (typeof hadIncorrectAttempt !== 'boolean') throw new TypeError('incorrect-attempt flag must be boolean');
-  if (!Number.isSafeInteger(nowDay)) throw new TypeError('an observed epoch day is required');
-  if (previousReviewDay !== undefined && !Number.isSafeInteger(previousReviewDay)) throw new TypeError('previous review must be an integer day');
+  if (!Number.isSafeInteger(nowDay)) throw new TypeError('a safe integer observed epoch day is required');
+  if (previousReviewDay !== undefined && !Number.isSafeInteger(previousReviewDay)) throw new TypeError('previous review must be a safe integer day');
   if (hadIncorrectAttempt && grade > 2) throw new TypeError('a retried success cannot be called Good or Easy');
   const clockDisordered = previousReviewDay !== undefined && nowDay < previousReviewDay;
   const elapsed = previousReviewDay === undefined || clockDisordered ? null : nowDay - previousReviewDay;
