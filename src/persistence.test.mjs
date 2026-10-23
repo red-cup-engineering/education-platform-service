@@ -142,5 +142,6 @@ test('import cannot upgrade last local-practice evidence into an independently r
     stability: 1, difficulty: 6.5, lastReviewedAt: 21007,
     lastPractice: { ...practice, credentialIssued: true },
   });
-  assert.equal(importStateJson(exportStateJson(populated)), null);
+  assert.throws(() => exportStateJson(populated), /local-state schema/);
+  assert.equal(importStateJson(JSON.stringify(populated)), null);
 });
