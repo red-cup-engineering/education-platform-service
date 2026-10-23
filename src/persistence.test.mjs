@@ -197,3 +197,31 @@ test('legacy v1 evidence-free progress persists while invalid local evidence can
   assert.equal(importStateJson(JSON.stringify(candidate)), null);
   assert.deepEqual(loadPlayerState(store, 'learning'), legacy);
 });
+
+test('seven-course seeded transfer of import guard refuses 300 mismatched-card dates', () => {
+  // Same deterministic corpus as practice-evidence.test: this checks a different
+  // consumer (versioned save import), not a second copy of the practice reader.
+  let seed = 0x561c0de;
+  function next() {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return seed >>> 0;
+  }
+  let rejected = 0;
+  for (let i = 0; i < 300; i++) {
+    const nowDay = 8000 + next() % 22000;
+    const grade = [2, 3, 4][next() % 3];
+    const mode = next() % 2 ? 'review' : 'gate';
+    const previousReviewDay = nowDay - (1 + next() % 1000);
+    const prior = loadPlayerState(memoryAdapter(), 'course-' + i % 7);
+    const evidence = lastPracticeEvidence({ mode, grade, nowDay, previousReviewDay });
+    const card = { stability: 2, difficulty: 5, lastReviewedAt: nowDay, lastPractice: evidence };
+    const valid = recordExerciseReview(prior, 'sample-' + i, card);
+    assert.deepEqual(importStateJson(exportStateJson(valid)), valid);
+    const forged = recordExerciseReview(prior, 'sample-' + i, { ...card, lastReviewedAt: nowDay + 1 });
+    assert.equal(importStateJson(JSON.stringify(forged)), null);
+    rejected++;
+  }
+  assert.equal(rejected, 300);
+});
