@@ -21,6 +21,14 @@ export function createEducationAppConfig(adapter) {
   });
 }
 
+/** Choose an actually unlocked saved room, or the first currently accessible room. */
+export function resumableRoomId(rooms, savedRoomId, mayEnter = () => true) {
+  if (!Array.isArray(rooms)) return null;
+  const found = rooms.find((room) => room.id === savedRoomId);
+  if (found && mayEnter(found.id)) return found.id;
+  return rooms.find((room) => mayEnter(room.id))?.id ?? null;
+}
+
 export function mountEducationApp({ root = document, adapter: suppliedAdapter }) {
   const adapter = createEducationAppConfig(suppliedAdapter);
   const document = root.ownerDocument ?? root;
@@ -86,8 +94,7 @@ async function boot() {
 }
 
 function pickInitialRoom() {
-  if (currentRoomId && world.raw.rooms.some((r) => r.id === currentRoomId)) return currentRoomId;
-  return world.raw.rooms[0]?.id ?? null;
+  return resumableRoomId(world.raw.rooms, playerState.lastVisitedRoomId ?? currentRoomId, roomUnlocked);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -186,10 +193,13 @@ function renderRoomList() {
 // ---------------------------------------------------------------------------------------
 
 function openRoom(roomId) {
+  const room = world.raw.rooms.find((r) => r.id === roomId);
+  if (!room || !roomUnlocked(roomId)) return;
   currentRoomId = roomId;
   session = null;
+  playerState = playerStore.rememberCourseRoom(playerState, roomId);
+  save();
   renderRoomList();
-  const room = world.raw.rooms.find((r) => r.id === roomId);
   const exs = roomExercises(roomId);
   const hall = adapter.presentation.halls ? world.raw.halls?.find((h) => h.rooms.includes(roomId)) : null;
 
@@ -279,7 +289,10 @@ els.fileImport?.addEventListener('change', async () => {
     renderStorageStatus();
     renderStreak();
     renderRoomList();
-    if (currentRoomId) openRoom(currentRoomId);
+    if (world) {
+      const target = resumableRoomId(world.raw.rooms, imported.lastVisitedRoomId, roomUnlocked);
+      if (target) openRoom(target);
+    }
   } catch (err) {
     alert(`Could not import save: ${err instanceof Error ? err.message : String(err)}`);
   } finally {
