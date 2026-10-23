@@ -6,6 +6,7 @@ import { reviewCard, recallProbability, STAGE_CUTS } from '../../src/srs.mjs';
 import { buildGateSession, buildReviewSession } from '../../src/session.mjs';
 import { recallMastery, roomMastery } from '../../src/mastery.mjs';
 import * as state from './state.js';
+import { allowedPracticeGrades, lastPracticeEvidence } from '../../src/practice-evidence.mjs';
 
 const SEED_DEFAULTS = { stability: 0, difficulty: 5 }; // pre-first-review placeholder, Lantern's own convention (persistence.mts §1 note)
 
@@ -318,7 +319,7 @@ function seedFor(tag) {
 function startGate(roomId) {
   const exs = roomExercises(roomId);
   const queue = buildGateSession(roomId, exs, seedFor(roomId)).map((exercise) => ({ exercise, mode: 'gate' }));
-  session = { roomId, mode: 'gate', queue, index: 0 };
+  session = { roomId, mode: 'gate', queue, index: 0, failedExerciseIds: new Set() };
   renderExerciseStep();
 }
 
@@ -343,7 +344,7 @@ function openReview() {
   btn.textContent = `Start review (${due.length})`;
   btn.addEventListener('click', () => {
     const queue = due.map((c) => ({ exercise: c.exercise, mode: 'review' }));
-    session = { roomId: '__review__', mode: 'review', queue, index: 0 };
+    session = { roomId: '__review__', mode: 'review', queue, index: 0, failedExerciseIds: new Set() };
     renderExerciseStep();
   });
   els.content.appendChild(btn);
@@ -402,6 +403,7 @@ function renderExerciseStep() {
 }
 
 function handleVerdict(verdict, step) {
+  if (!verdict.pass) session?.failedExerciseIds.add(step.exercise.id);
   showVerdict(verdict, step, (grade) => applyReview(step.exercise, grade));
 }
 
@@ -424,7 +426,13 @@ function showVerdict(verdict, step, onGraded) {
     const grades = document.createElement('div');
     grades.className = 'grade-row';
     let graded = false;
-    for (const [grade, cls, label] of [[2, 'grade-hard', 'Hard'], [3, 'grade-good', 'Good'], [4, 'grade-easy', 'Easy']]) {
+    const failedBeforeSuccess = session?.failedExerciseIds?.has(step.exercise.id) ?? false;
+    if (failedBeforeSuccess) {
+      const note = document.createElement('p');
+      note.textContent = 'Correct after feedback. This counts as practice, with an earlier review, not first-try recall.';
+      grades.appendChild(note);
+    }
+    for (const [grade, cls, label] of allowedPracticeGrades({ failedBeforeSuccess })) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = `grade ${cls}`;
@@ -457,7 +465,15 @@ function showVerdict(verdict, step, onGraded) {
 
 function applyReview(exercise, grade) {
   const prior = effectiveState(exercise.id);
-  const next = reviewCard(prior, grade, today());
+  const nowDay = today();
+  const evidence = lastPracticeEvidence({
+    mode: session?.mode,
+    grade,
+    hadIncorrectAttempt: session?.failedExerciseIds?.has(exercise.id) ?? false,
+    nowDay,
+    previousReviewDay: prior.lastReviewedAt,
+  });
+  const next = { ...reviewCard(prior, grade, nowDay), lastPractice: evidence };
   playerState = playerStore.recordExerciseReview(playerState, exercise.id, next);
   save();
   markActivity();
@@ -476,13 +492,13 @@ function finishSession() {
   renderRoomList();
   els.content.innerHTML = '';
   const h2 = document.createElement('h2');
-  h2.textContent = mode === 'gate' ? 'Room cleared' : 'Review complete';
+  h2.textContent = mode === 'gate' ? 'Practice session complete' : 'Review session complete';
   els.content.appendChild(h2);
   const p = document.createElement('p');
   const recall = roomId === '__review__' ? undefined : roomRecall(roomId, today());
   p.textContent = !adapter.presentation.recallPercent || recall === undefined
     ? 'Nice work.'
-    : `Recall mastery for this room: ${Math.round(recall * 100)}%${recall >= STAGE_CUTS.full ? ' (mastered)' : ''}.`;
+    : `Model-estimated recall for this room: ${Math.round(recall * 100)}%. This is not an independent capability assessment.`;
   els.content.appendChild(p);
 
   const backBtn = document.createElement('button');
