@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { createEducationAppConfig } from '../js/app.js';
+import { createEducationAppConfig, resumableRoomId } from '../js/app.js';
 import { createStateStore } from '../js/state.js';
 import { renderMarkdownBlockHtml } from '@red-cup-engineering/markdown-engineering-services-section/render-markdown-block-html';
 import { stripExerciseFences } from '../js/markdown.js';
@@ -73,4 +73,14 @@ test('browser lesson projection shares tables and extended fence observations', 
   assert.match(html, /<h2>Lesson<\/h2>/);
   assert.match(html, /<td>1<\/td><td><strong>2<\/strong><\/td>/);
   assert.match(html, /```inner\nvisible/);
+});
+
+
+test('course return-to-study selects a saved unlocked room, not always the overview', () => {
+  const rooms = [{ id: 'overview' }, { id: 'lesson-1' }, { id: 'lesson-2' }];
+  const eligible = (id) => id !== 'lesson-2';
+  assert.equal(resumableRoomId(rooms, 'lesson-1', eligible), 'lesson-1');
+  assert.equal(resumableRoomId(rooms, 'lesson-2', eligible), 'overview', 'an unqualified saved room must not bypass prerequisites');
+  assert.equal(resumableRoomId(rooms, 'missing', eligible), 'overview');
+  assert.equal(resumableRoomId([], 'lesson-1', eligible), null);
 });
