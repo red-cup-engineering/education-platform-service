@@ -71,7 +71,7 @@ function migrate(raw) {
   if (state.schemaVersion !== SCHEMA_VERSION || typeof state.themeId !== 'string' || !state.exercises || typeof state.exercises !== 'object' || Array.isArray(state.exercises) || !state.streak || typeof state.streak !== 'object') return null;
   const streak = state.streak;
   if (![streak.current, streak.longest, streak.freezeTokens, streak.freezesUsed].every(Number.isFinite) || !(streak.lastActiveDay === null || Number.isInteger(streak.lastActiveDay))) return null;
-  if (!Object.values(state.exercises).every((card) => card && typeof card === 'object' && Number.isFinite((card).stability) && Number.isFinite((card).difficulty) && ((card).lastReviewedAt === undefined || Number.isInteger((card).lastReviewedAt)) && ((card).lastPractice === undefined || validStoredPracticeEvidence((card).lastPractice)))) return null;
+  if (!Object.values(state.exercises).every((card) => card && typeof card === 'object' && Number.isFinite((card).stability) && Number.isFinite((card).difficulty) && ((card).lastReviewedAt === undefined || Number.isInteger((card).lastReviewedAt)) && ((card).lastPractice === undefined || (validStoredPracticeEvidence((card).lastPractice) && (card).lastReviewedAt === (card).lastPractice.observedAtDay)))) return null;
   if (state.lastVisitedRoomId !== undefined && (typeof state.lastVisitedRoomId !== 'string' || !state.lastVisitedRoomId.trim() || state.lastVisitedRoomId.length > 512)) return null;
   return state;
 }
