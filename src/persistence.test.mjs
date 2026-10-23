@@ -162,3 +162,38 @@ test('local study resume is preserved across save/reload but cannot bypass cours
   assert.throws(() => rememberCourseRoom(original, 42), /real room/);
   assert.equal(importStateJson(JSON.stringify({ ...remembered, lastVisitedRoomId: 42 })), null);
 });
+
+test('local practice note and saved SRS event must refer to the identical observed review day', () => {
+  const initial = loadPlayerState(memoryAdapter(), 'academy');
+  const evidence = lastPracticeEvidence({ mode: 'review', grade: 3, nowDay: 500, previousReviewDay: 490 });
+  const valid = recordExerciseReview(initial, 'room#choice#0', {
+    stability: 1.5, difficulty: 5, lastReviewedAt: 500, lastPractice: evidence,
+  });
+  assert.deepEqual(importStateJson(exportStateJson(valid)), valid);
+  for (const changedReview of [499, 501, undefined]) {
+    const stale = recordExerciseReview(initial, 'room#choice#0', {
+      stability: 1.5, difficulty: 5, lastReviewedAt: changedReview, lastPractice: evidence,
+    });
+    assert.throws(() => exportStateJson(stale), /local-state schema/);
+    assert.equal(importStateJson(JSON.stringify(stale)), null);
+  }
+  const alteredPractice = recordExerciseReview(initial, 'room#choice#0', {
+    stability: 1.5, difficulty: 5, lastReviewedAt: 500,
+    lastPractice: { ...evidence, observedAtDay: 499 },
+  });
+  assert.equal(importStateJson(JSON.stringify(alteredPractice)), null);
+});
+
+test('legacy v1 evidence-free progress persists while invalid local evidence cannot overwrite it', () => {
+  const store = memoryAdapter();
+  const initial = loadPlayerState(store, 'learning');
+  const legacy = recordExerciseReview(initial, 'lesson#match#0', { stability: 4.5, difficulty: 5, lastReviewedAt: 60 });
+  savePlayerState(store, legacy);
+  assert.deepEqual(loadPlayerState(store, 'learning'), legacy);
+  const candidate = recordExerciseReview(legacy, 'lesson#match#0', {
+    stability: 6, difficulty: 4, lastReviewedAt: 65,
+    lastPractice: { ...lastPracticeEvidence({ mode: 'review', grade: 4, nowDay: 65, previousReviewDay: 60 }), correctBeforeFeedback: false },
+  });
+  assert.equal(importStateJson(JSON.stringify(candidate)), null);
+  assert.deepEqual(loadPlayerState(store, 'learning'), legacy);
+});
