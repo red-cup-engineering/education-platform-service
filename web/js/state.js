@@ -30,6 +30,7 @@ export function createStateStore(themeId, storage = browserStorage()) {
 export const today = persistence.today;
 export const effectiveExerciseState = persistence.effectiveExerciseState;
 export const recordExerciseReview = persistence.recordExerciseReview;
+export const rememberCourseRoom = persistence.rememberCourseRoom;
 export const touchStreak = persistence.touchStreak;
 export const streakAtRisk = persistence.streakAtRisk;
 export const exportStateJson = persistence.exportStateJson;

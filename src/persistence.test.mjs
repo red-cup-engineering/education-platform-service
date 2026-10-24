@@ -6,6 +6,7 @@ import {
   savePlayerState,
   effectiveExerciseState,
   recordExerciseReview,
+  rememberCourseRoom,
   touchStreak,
   streakAtRisk,
   exportStateJson,
@@ -13,6 +14,7 @@ import {
   today,
   SCHEMA_VERSION,
 } from './persistence.mjs';
+import { lastPracticeEvidence } from './practice-evidence.mjs';
 
 test('loadPlayerState on an empty adapter returns a fresh, correctly-versioned state', () => {
   const state = loadPlayerState(memoryAdapter(), 'equivo');
@@ -113,4 +115,113 @@ test('today() derives an integer epoch day from a clock, never calling Date.now(
   const oneDayLater = today(86_400_000);
   assert.equal(day0, 0);
   assert.equal(oneDayLater, 1);
+});
+
+
+test('optional local attempt provenance survives save, reload and export without changing old saved states', () => {
+  const storage = memoryAdapter();
+  const original = loadPlayerState(storage, 'academy-course');
+  const practice = lastPracticeEvidence({ mode: 'gate', grade: 2, nowDay: 21000, hadIncorrectAttempt: true });
+  const updated = recordExerciseReview(original, 'unit#choice#1', {
+    stability: 1, difficulty: 6.5, lastReviewedAt: 21000, lastPractice: practice,
+  });
+  savePlayerState(storage, updated);
+  const reloaded = loadPlayerState(storage, 'academy-course');
+  assert.equal(reloaded.exercises['unit#choice#1'].lastPractice.correctBeforeFeedback, false);
+  assert.equal(reloaded.exercises['unit#choice#1'].lastPractice.credentialIssued, false);
+  assert.deepEqual(importStateJson(exportStateJson(updated)), updated);
+  const legacy = recordExerciseReview(original, 'unit#choice#1', {
+    stability: 1, difficulty: 6.5, lastReviewedAt: 21000,
+  });
+  assert.deepEqual(importStateJson(exportStateJson(legacy)), legacy);
+});
+
+test('import cannot upgrade last local-practice evidence into an independently received credential', () => {
+  const original = loadPlayerState(memoryAdapter(), 'academy-course');
+  const practice = lastPracticeEvidence({ mode: 'review', grade: 2, nowDay: 21007, previousReviewDay: 21000 });
+  const populated = recordExerciseReview(original, 'unit#choice#1', {
+    stability: 1, difficulty: 6.5, lastReviewedAt: 21007,
+    lastPractice: { ...practice, credentialIssued: true },
+  });
+  assert.throws(() => exportStateJson(populated), /local-state schema/);
+  assert.equal(importStateJson(JSON.stringify(populated)), null);
+});
+
+
+test('local study resume is preserved across save/reload but cannot bypass course identity', () => {
+  const adapter = memoryAdapter();
+  const original = loadPlayerState(adapter, 'course-one');
+  const remembered = rememberCourseRoom(original, 'lesson-two');
+  assert.equal(remembered.lastVisitedRoomId, 'lesson-two');
+  assert.equal(original.lastVisitedRoomId, undefined);
+  savePlayerState(adapter, remembered);
+  assert.equal(loadPlayerState(adapter, 'course-one').lastVisitedRoomId, 'lesson-two');
+  assert.equal(loadPlayerState(adapter, 'course-two').lastVisitedRoomId, undefined);
+  assert.deepEqual(importStateJson(exportStateJson(remembered)), remembered);
+  assert.throws(() => rememberCourseRoom(original, ''), /real room/);
+  assert.throws(() => rememberCourseRoom(original, 42), /real room/);
+  assert.equal(importStateJson(JSON.stringify({ ...remembered, lastVisitedRoomId: 42 })), null);
+});
+
+test('local practice note and saved SRS event must refer to the identical observed review day', () => {
+  const initial = loadPlayerState(memoryAdapter(), 'academy');
+  const evidence = lastPracticeEvidence({ mode: 'review', grade: 3, nowDay: 500, previousReviewDay: 490 });
+  const valid = recordExerciseReview(initial, 'room#choice#0', {
+    stability: 1.5, difficulty: 5, lastReviewedAt: 500, lastPractice: evidence,
+  });
+  assert.deepEqual(importStateJson(exportStateJson(valid)), valid);
+  for (const changedReview of [499, 501, undefined]) {
+    const stale = recordExerciseReview(initial, 'room#choice#0', {
+      stability: 1.5, difficulty: 5, lastReviewedAt: changedReview, lastPractice: evidence,
+    });
+    assert.throws(() => exportStateJson(stale), /local-state schema/);
+    assert.equal(importStateJson(JSON.stringify(stale)), null);
+  }
+  const alteredPractice = recordExerciseReview(initial, 'room#choice#0', {
+    stability: 1.5, difficulty: 5, lastReviewedAt: 500,
+    lastPractice: { ...evidence, observedAtDay: 499 },
+  });
+  assert.equal(importStateJson(JSON.stringify(alteredPractice)), null);
+});
+
+test('legacy v1 evidence-free progress persists while invalid local evidence cannot overwrite it', () => {
+  const store = memoryAdapter();
+  const initial = loadPlayerState(store, 'learning');
+  const legacy = recordExerciseReview(initial, 'lesson#match#0', { stability: 4.5, difficulty: 5, lastReviewedAt: 60 });
+  savePlayerState(store, legacy);
+  assert.deepEqual(loadPlayerState(store, 'learning'), legacy);
+  const candidate = recordExerciseReview(legacy, 'lesson#match#0', {
+    stability: 6, difficulty: 4, lastReviewedAt: 65,
+    lastPractice: { ...lastPracticeEvidence({ mode: 'review', grade: 4, nowDay: 65, previousReviewDay: 60 }), correctBeforeFeedback: false },
+  });
+  assert.equal(importStateJson(JSON.stringify(candidate)), null);
+  assert.deepEqual(loadPlayerState(store, 'learning'), legacy);
+});
+
+test('seven-course seeded transfer of import guard refuses 300 mismatched-card dates', () => {
+  // Same deterministic corpus as practice-evidence.test: this checks a different
+  // consumer (versioned save import), not a second copy of the practice reader.
+  let seed = 0x561c0de;
+  function next() {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return seed >>> 0;
+  }
+  let rejected = 0;
+  for (let i = 0; i < 300; i++) {
+    const nowDay = 8000 + next() % 22000;
+    const grade = [2, 3, 4][next() % 3];
+    const mode = next() % 2 ? 'review' : 'gate';
+    const previousReviewDay = nowDay - (1 + next() % 1000);
+    const prior = loadPlayerState(memoryAdapter(), 'course-' + i % 7);
+    const evidence = lastPracticeEvidence({ mode, grade, nowDay, previousReviewDay });
+    const card = { stability: 2, difficulty: 5, lastReviewedAt: nowDay, lastPractice: evidence };
+    const valid = recordExerciseReview(prior, 'sample-' + i, card);
+    assert.deepEqual(importStateJson(exportStateJson(valid)), valid);
+    const forged = recordExerciseReview(prior, 'sample-' + i, { ...card, lastReviewedAt: nowDay + 1 });
+    assert.equal(importStateJson(JSON.stringify(forged)), null);
+    rejected++;
+  }
+  assert.equal(rejected, 300);
 });
