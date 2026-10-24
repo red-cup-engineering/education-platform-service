@@ -21,10 +21,10 @@
     "esbuild": "0.28.1",
     "buffer": "6.0.3",
     "@red-cup-engineering/metrologic": "0.4.0",
-    "@red-cup-engineering/json-services-section": "0.4.0",
+    "@red-cup-engineering/json-engineering-services-section": "0.4.0",
     "@red-cup-engineering/read-markdown-structure-service": "0.2.0",
     "@red-cup-engineering/computer-code-engineering-services-section": "0.1.2",
-    "@red-cup-engineering/icalendar-services-section": "0.1.1",
+    "@red-cup-engineering/icalendar-engineering-services-section": "0.1.1",
     "@red-cup-engineering/markdown-engineering-services-section": "0.5.2",
     "@red-cup-engineering/gaming": "0.1.10",
     "@red-cup-engineering/web-page-tiling-engine": "0.14.2"
@@ -60,7 +60,7 @@
     "./markdown": "./web/js/markdown.js"
   },
   "devDependencies": {
-    "@red-cup-engineering/json-services-section": "0.4.0"
+    "@red-cup-engineering/json-engineering-services-section": "0.4.0"
   },
   "private": false,
   "license": "MIT",
